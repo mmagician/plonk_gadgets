@@ -17,12 +17,13 @@ This library provides:
 
 - Scalar gadgets: `is_non-zero`, `maybe_equals`, `conditionally_select_one`, `conditionally_select_zero`.
 - Range gadgets: `range_check`, `max_bound`.
-
+- Vector gadgets: `set_non_membership`.
 
 ## Acknowledgements
 
 - Conditional selection gadgets and `AllocatedScalar` structure have been taken from the ZCash sapling
 circuits and translated to the Plonk Constraint System language.
+- Vector/set gadgets have been adapted from [Lovesh Harchandani's Bulletproof gadgets](https://github.com/lovesh/bulletproofs-r1cs-gadgets)
 
 ## Licensing
 
