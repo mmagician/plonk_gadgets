@@ -12,46 +12,9 @@ use super::AllocatedScalar;
 use crate::Error as GadgetsError;
 use alloc::vec::Vec;
 use dusk_plonk::prelude::*;
-use super::scalar::is_non_zero;
 
 /// Provided a `Vec<BlsScalar>`, constraint `value: BlsScalar` to be in that set
 pub fn set_non_membership_gadget(
-    composer: &mut StandardComposer,
-    v: AllocatedScalar,
-    diff_vars: Vec<AllocatedScalar>,
-    diff_inv_vars: Vec<AllocatedScalar>,
-    set: &Vec<BlsScalar>,
-) -> Result<(), GadgetsError> {
-    let set_length = set.len();
-
-    for i in 0..set_length {
-        // Since `diff_vars[i]` is `set[i] - v`, `diff_vars[i]` + `v` should be `set[i]`
-        composer.add(
-            (BlsScalar::one(), diff_vars[i].var),
-            (BlsScalar::one(), v.var),
-            -set[i],
-            None
-        );
-
-        // This is basically the is_non_zero method, except that we've already computed the inverses
-        let one = composer.add_witness_to_circuit_description(BlsScalar::one());
-        composer.poly_gate(
-            diff_vars[i].var,
-            diff_inv_vars[i].var,
-            one,
-            BlsScalar::one(),
-            BlsScalar::zero(),
-            BlsScalar::zero(),
-            -BlsScalar::one(),
-            BlsScalar::zero(),
-            None,
-        );
-    }
-
-    Ok(())
-}
-/// Provided a `Vec<BlsScalar>`, constraint `value: BlsScalar` to be in that set
-pub fn set_non_membership(
     composer: &mut StandardComposer,
     set: Vec<BlsScalar>,
     value: BlsScalar,
@@ -79,7 +42,26 @@ pub fn set_non_membership(
             return Err(GadgetsError::NonExistingInverse);
         }
 
-    }
-    set_non_membership_gadget(composer, v, diff_vars, diff_inv_vars, &set)
+        composer.add(
+            (BlsScalar::one(), diff_inv_assigned.var),
+            (BlsScalar::one(), v.var),
+            -elem,
+            None,
+        );
 
+        // This is basically the is_non_zero method, except that we've already computed the inverses
+        let one = composer.add_witness_to_circuit_description(BlsScalar::one());
+        composer.poly_gate(
+            diff_assigned.var,
+            diff_inv_assigned.var,
+            one,
+            BlsScalar::one(),
+            BlsScalar::zero(),
+            BlsScalar::zero(),
+            -BlsScalar::one(),
+            BlsScalar::zero(),
+            None,
+        );
+    }
+    Ok(())
 }

@@ -8,16 +8,16 @@ extern crate dusk_plonk;
 extern crate plonk_gadgets;
 
 use dusk_plonk::prelude::*;
-use plonk_gadgets::{AllocatedScalar, Error as GadgetError, SetGadgets::*};
+use plonk_gadgets::{Error as GadgetError, SetGadgets::*};
 
 #[test]
-fn test_set_non_membership() -> Result<(), Error> {
+fn test_set_non_membership_gadget() -> Result<(), Error> {
     // The circuit closure runs the is_not_zero fn and constraints the input to
     // not be zero.
     let circuit = |composer: &mut StandardComposer,
                    set: Vec<BlsScalar>,
                    value: BlsScalar|
-     -> Result<(), GadgetError> { set_non_membership(composer, set, value) };
+     -> Result<(), GadgetError> { set_non_membership_gadget(composer, set, value) };
 
     // Generate Composer & Public Parameters
     let pub_params = PublicParameters::setup(1 << 8, &mut rand::thread_rng())?;
