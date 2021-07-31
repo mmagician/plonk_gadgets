@@ -38,8 +38,10 @@ pub(crate) mod allocated_scalar;
 pub mod errors;
 pub mod range;
 pub mod scalar;
+pub mod set;
 
 pub use crate::errors::Error;
 pub use allocated_scalar::AllocatedScalar;
 pub use range as RangeGadgets;
 pub use scalar as ScalarGadgets;
+pub use set as SetGadgets;
