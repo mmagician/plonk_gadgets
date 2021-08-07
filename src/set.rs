@@ -9,6 +9,7 @@
 //! This module contains gadgets for checking set membership,
 //! set non-membership and set uniqueness
 use super::AllocatedScalar;
+use crate::bit::bit_gadget;
 use crate::Error as GadgetsError;
 use alloc::vec::Vec;
 use dusk_plonk::prelude::*;
@@ -90,5 +91,26 @@ pub fn vector_sum_gadget(
     // and constrain the accumulator to be equal to it
     composer.assert_equal(accumulator, expected_sum_var);
 
+    Ok(())
+}
+
+/// Provided a `Vec<BlsScalar>`, constraint `value: BlsScalar` to be in that set
+pub fn set_membership_gadget(
+    composer: &mut StandardComposer,
+    set: Vec<BlsScalar>,
+    value: BlsScalar,
+) -> Result<(), GadgetsError> {
+    let bit_map: Vec<u64> = set
+        .iter()
+        .map(|elem| if *elem == value { 1 } else { 0 })
+        .collect();
+
+    let mut assigned_bits: Vec<AllocatedScalar> = Vec::new();
+    for bit in bit_map {
+        let bit_assigned = AllocatedScalar::allocate(composer, BlsScalar::from(bit));
+        assigned_bits.push(bit_assigned);
+        assert!(bit_gadget(composer, bit_assigned).is_ok());
+    }
+    assert!(vector_sum_gadget(composer, &assigned_bits, 1.into()).is_ok());
     Ok(())
 }
