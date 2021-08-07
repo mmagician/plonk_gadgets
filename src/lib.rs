@@ -39,9 +39,11 @@ pub mod errors;
 pub mod range;
 pub mod scalar;
 pub mod set;
+pub mod bit;
 
 pub use crate::errors::Error;
 pub use allocated_scalar::AllocatedScalar;
 pub use range as RangeGadgets;
 pub use scalar as ScalarGadgets;
 pub use set as SetGadgets;
+pub use bit as BitGadgets;
