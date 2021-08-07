@@ -8,6 +8,7 @@ extern crate dusk_plonk;
 extern crate plonk_gadgets;
 
 use dusk_plonk::prelude::*;
+use plonk_gadgets::AllocatedScalar;
 use plonk_gadgets::{Error as GadgetError, SetGadgets::*};
 
 #[test]
@@ -96,13 +97,24 @@ fn test_vector_sum_gadget() -> Result<(), Error> {
     for case in test_cases.into_iter() {
         let mut prover = Prover::default();
 
-        assert!(vector_sum_gadget(prover.mut_cs(), &case.vector, case.sum).is_ok());
+        let allocated_vector: Vec<AllocatedScalar> = case
+            .vector
+            .iter()
+            .map(|x| AllocatedScalar::allocate(prover.mut_cs(), *x))
+            .collect();
+        assert!(vector_sum_gadget(prover.mut_cs(), &allocated_vector, case.sum).is_ok());
         let pi = prover.mut_cs().construct_dense_pi_vec().clone();
         prover.preprocess(&ck)?;
         let proof = prover.prove(&ck)?;
 
         let mut verifier = Verifier::default();
-        assert!(vector_sum_gadget(verifier.mut_cs(), &case.vector, BlsScalar::zero()).is_ok());
+        let allocated_vector: Vec<AllocatedScalar> = case
+            .vector
+            .iter()
+            .map(|x| AllocatedScalar::allocate(verifier.mut_cs(), *x))
+            .collect();
+
+        assert!(vector_sum_gadget(verifier.mut_cs(), &allocated_vector, BlsScalar::zero()).is_ok());
         verifier.preprocess(&ck)?;
         if case.expected {
             assert!(verifier.verify(&proof, &vk, &pi).is_ok());
