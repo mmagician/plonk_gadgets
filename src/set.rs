@@ -65,3 +65,41 @@ pub fn set_non_membership_gadget(
     }
     Ok(())
 }
+
+/// Constrain the sum of elements in the vector to be `expected_sum`
+pub fn vector_sum_gadget(
+    composer: &mut StandardComposer,
+    vector: &Vec<BlsScalar>,
+    expected_sum: BlsScalar,
+) -> Result<(), GadgetsError> {
+    // let mut accumulator = AllocatedScalar::allocate(composer, BlsScalar::zero());
+    let mut assigned_vector_elements: Vec<Variable> = Vec::new();
+    for elem in vector.iter() {
+        assigned_vector_elements.push(composer.add_input(*elem));
+    }
+
+    let mut accumulator: Variable = composer.zero_var();
+
+    for i in 0..vector.len() {
+        // println!("{:?}", accumulator);
+        // add each vector element to the circuit description
+
+        // accumulate the sum
+        // accumulator.scalar += elem;
+
+        // the accumulated Variable will be the sum of all previous ones
+        accumulator = composer.add(
+            (BlsScalar::one(), accumulator),
+            (BlsScalar::one(), assigned_vector_elements[i]),
+            BlsScalar::zero(),
+            None,
+        );
+    }
+
+    // finally, we allocate a variable for the expected sum
+    let expected_sum_var = composer.add_input(expected_sum);
+    // and constrain the accumulator to be equal to it
+    composer.assert_equal(accumulator, expected_sum_var);
+
+    Ok(())
+}

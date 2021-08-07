@@ -55,3 +55,60 @@ fn test_set_non_membership_gadget() -> Result<(), Error> {
 
     Ok(())
 }
+
+#[test]
+fn test_vector_sum_gadget() -> Result<(), Error> {
+    // Generate Composer & Public Parameters
+    let pub_params = PublicParameters::setup(1 << 8, &mut rand::thread_rng())?;
+    let (ck, vk) = pub_params.trim(1 << 7)?;
+    struct TestCase {
+        vector: Vec<BlsScalar>,
+        sum: BlsScalar,
+        expected: bool,
+    }
+    let test_cases = vec![
+        TestCase {
+            vector: vec![1, 0, 0, 0]
+                .iter()
+                .map(|x| BlsScalar::from(*x))
+                .collect(),
+            sum: BlsScalar::one(),
+            expected: true,
+        },
+        TestCase {
+            vector: vec![1, 2, 3, 4]
+                .iter()
+                .map(|x| BlsScalar::from(*x))
+                .collect(),
+            sum: BlsScalar::from(10),
+            expected: true,
+        },
+        TestCase {
+            vector: vec![1, 2, 3, 4]
+                .iter()
+                .map(|x| BlsScalar::from(*x))
+                .collect(),
+            sum: BlsScalar::from(12),
+            expected: false,
+        },
+    ];
+
+    for case in test_cases.into_iter() {
+        let mut prover = Prover::default();
+
+        assert!(vector_sum_gadget(prover.mut_cs(), &case.vector, case.sum).is_ok());
+        let pi = prover.mut_cs().construct_dense_pi_vec().clone();
+        prover.preprocess(&ck)?;
+        let proof = prover.prove(&ck)?;
+
+        let mut verifier = Verifier::default();
+        assert!(vector_sum_gadget(verifier.mut_cs(), &case.vector, BlsScalar::zero()).is_ok());
+        verifier.preprocess(&ck)?;
+        if case.expected {
+            assert!(verifier.verify(&proof, &vk, &pi).is_ok());
+        } else {
+            assert!(verifier.verify(&proof, &vk, &pi).is_err());
+        }
+    }
+    Ok(())
+}
