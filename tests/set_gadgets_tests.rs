@@ -19,7 +19,8 @@ fn test_vector_non_membership_gadget() -> Result<(), Error> {
                    vector: &Vec<BlsScalar>,
                    witness: BlsScalar|
      -> Result<(), GadgetError> {
-        vector_non_membership_gadget(composer, &vector, witness)
+        let v = AllocatedScalar::allocate(composer, witness);
+        vector_non_membership_gadget(composer, &vector, v)
     };
 
     // Generate Composer & Public Parameters

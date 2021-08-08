@@ -29,10 +29,8 @@ use dusk_plonk::prelude::*;
 pub fn vector_non_membership_gadget(
     composer: &mut StandardComposer,
     vector: &Vec<BlsScalar>,
-    value: BlsScalar,
+    value: AllocatedScalar,
 ) -> Result<(), GadgetsError> {
-    // Add the `value` to the composer
-    let v = AllocatedScalar::allocate(composer, value);
 
     // Add each element from the vector to the composer
     for elem in vector.iter() {
@@ -41,7 +39,7 @@ pub fn vector_non_membership_gadget(
         // to a constant corresponding to vector's value at that index
         let elem_assigned = composer.add_input(*elem);
         composer.constrain_to_constant(elem_assigned, *elem, None);
-        let diff = elem - value;
+        let diff = elem - value.scalar;
         let diff_assigned = AllocatedScalar::allocate(composer, diff);
 
         let diff_inv = diff.invert();
@@ -58,7 +56,7 @@ pub fn vector_non_membership_gadget(
         // for `diff + value`
         let value_plus_diff: Variable = composer.add(
             (BlsScalar::one(), diff_assigned.var),
-            (BlsScalar::one(), v.var),
+            (BlsScalar::one(), value.var),
             BlsScalar::zero(),
             // -elem,
             None,
