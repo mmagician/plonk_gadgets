@@ -126,18 +126,70 @@ pub fn vector_sum_gadget(
     Ok(())
 }
 
+/// Constrain the product of vector[i] * bits_vector[i] == value * bits_vector[i]
+pub fn vector_product_gadget(
+    composer: &mut StandardComposer,
+    vector: &Vec<AllocatedScalar>,
+    bits_vector: &Vec<AllocatedScalar>,
+    value: AllocatedScalar,
+) -> Result<(), GadgetsError> {
+    // TODO need unit tests for this gadget!
+    assert_eq!(vector.len(), bits_vector.len());
+    let mut accumulator: Variable = composer.zero_var();
+    for i in 0..vector.len() {
+        let left = composer.mul(
+            BlsScalar::one(),
+            vector[i].var,
+            bits_vector[i].var,
+            BlsScalar::zero(),
+            None,
+        );
+        let right = composer.mul(
+            BlsScalar::one(),
+            value.var,
+            bits_vector[i].var,
+            BlsScalar::zero(),
+            None,
+        );
+        composer.assert_equal(left, right);
+        accumulator = composer.add(
+            (BlsScalar::one(), accumulator),
+            (BlsScalar::one(), left),
+            BlsScalar::zero(),
+            None,
+        );
+    }
+
+    // // and constrain the accumulator to be equal to it
+    composer.assert_equal(accumulator, value.var);
+
     Ok(())
 }
 
-/// Provided a `Vec<BlsScalar>`, constraint `value: BlsScalar` to be in that set
+/// Analogous to vector_non_membership_gadget
 pub fn set_membership_gadget(
     composer: &mut StandardComposer,
-    set: Vec<BlsScalar>,
-    value: BlsScalar,
+    vector: &Vec<BlsScalar>,
+    assigned_value: AllocatedScalar,
 ) -> Result<(), GadgetsError> {
-    let bit_map: Vec<u64> = set
+    let mut assigned_set: Vec<AllocatedScalar> = Vec::with_capacity(vector.len());
+    for elem in vector.iter() {
+        // Since the vector forms part of the circuit,
+        // we should explicitly constrain each variable in the circuit
+        // to a constant corresponding to vector's value at that index
+        let elem_assigned = AllocatedScalar::allocate(composer, *elem);
+        composer.constrain_to_constant(elem_assigned.var, *elem, None);
+        assigned_set.push(elem_assigned);
+    }
+    let bit_map: Vec<u64> = vector
         .iter()
-        .map(|elem| if *elem == value { 1 } else { 0 })
+        .map(|elem| {
+            if *elem == assigned_value.scalar {
+                1
+            } else {
+                0
+            }
+        })
         .collect();
 
     let mut assigned_bits: Vec<AllocatedScalar> = Vec::new();
@@ -146,6 +198,8 @@ pub fn set_membership_gadget(
         assigned_bits.push(bit_assigned);
         assert!(bit_gadget(composer, bit_assigned).is_ok());
     }
-    assert!(vector_sum_gadget(composer, &assigned_bits, 1.into()).is_ok());
+    assert!(vector_sum_gadget(composer, &assigned_bits, 1).is_ok());
+
+    assert!(vector_product_gadget(composer, &assigned_set, &assigned_bits, assigned_value).is_ok());
     Ok(())
 }
