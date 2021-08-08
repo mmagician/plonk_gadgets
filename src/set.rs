@@ -95,10 +95,14 @@ pub fn vector_non_membership_gadget(
 }
 
 /// Constrain the sum of elements in the vector to be `expected_sum`
+/// We are not assuming the public knowledge of vector
+/// Simply, we enforce that variables in the circuit allocated
+/// to vector's elements sum up s.t. their sum is constrained to `expected_sum`:
+/// v_1 + v_2 + ... + v_n = expected_sum
 pub fn vector_sum_gadget(
     composer: &mut StandardComposer,
     vector: &Vec<AllocatedScalar>,
-    expected_sum: BlsScalar,
+    expected_sum: u64,
 ) -> Result<(), GadgetsError> {
     let mut accumulator: Variable = composer.zero_var();
 
@@ -112,10 +116,17 @@ pub fn vector_sum_gadget(
         );
     }
 
-    // finally, we allocate a variable for the expected sum
-    let expected_sum_var = composer.add_input(expected_sum);
     // and constrain the accumulator to be equal to it
-    composer.assert_equal(accumulator, expected_sum_var);
+    // Now the expected sum is not part of the circuit,
+    // hence we place it as Public Input
+    composer.constrain_to_constant(
+        accumulator,
+        BlsScalar::zero(),
+        Some(-BlsScalar::from(expected_sum)),
+    );
+
+    Ok(())
+}
 
     Ok(())
 }

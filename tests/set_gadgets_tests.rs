@@ -113,7 +113,7 @@ fn test_vector_sum_gadget() -> Result<(), Error> {
     let (ck, vk) = pub_params.trim(1 << 7)?;
     struct TestCase {
         vector: Vec<BlsScalar>,
-        sum: BlsScalar,
+        sum: u64,
         expected: bool,
     }
     let test_cases = vec![
@@ -122,7 +122,7 @@ fn test_vector_sum_gadget() -> Result<(), Error> {
                 .iter()
                 .map(|x| BlsScalar::from(*x))
                 .collect(),
-            sum: BlsScalar::one(),
+            sum: 1,
             expected: true,
         },
         TestCase {
@@ -130,7 +130,15 @@ fn test_vector_sum_gadget() -> Result<(), Error> {
                 .iter()
                 .map(|x| BlsScalar::from(*x))
                 .collect(),
-            sum: BlsScalar::from(10),
+            sum: 10,
+            expected: true,
+        },
+        TestCase {
+            vector: vec![0, 0, 0, 0]
+                .iter()
+                .map(|x| BlsScalar::from(*x))
+                .collect(),
+            sum: 0,
             expected: true,
         },
         TestCase {
@@ -138,7 +146,7 @@ fn test_vector_sum_gadget() -> Result<(), Error> {
                 .iter()
                 .map(|x| BlsScalar::from(*x))
                 .collect(),
-            sum: BlsScalar::from(12),
+            sum: 12,
             expected: false,
         },
     ];
@@ -163,7 +171,7 @@ fn test_vector_sum_gadget() -> Result<(), Error> {
             .map(|x| AllocatedScalar::allocate(verifier.mut_cs(), *x))
             .collect();
 
-        assert!(vector_sum_gadget(verifier.mut_cs(), &allocated_vector, BlsScalar::zero()).is_ok());
+        assert!(vector_sum_gadget(verifier.mut_cs(), &allocated_vector, 0).is_ok());
         verifier.preprocess(&ck)?;
         if case.expected {
             assert!(verifier.verify(&proof, &vk, &pi).is_ok());
