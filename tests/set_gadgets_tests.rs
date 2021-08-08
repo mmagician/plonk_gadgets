@@ -53,10 +53,10 @@ fn test_vector_non_membership_gadget() -> Result<(), Error> {
             expected_prover: false,
         },
         TestCase {
-            prover_vector: vec![BlsScalar::from(3), BlsScalar::from(3)],
-            verifier_vector: vec![BlsScalar::from(3), BlsScalar::from(3)],
+            prover_vector: vec![BlsScalar::from(3), BlsScalar::from(3), BlsScalar::from(5)],
+            verifier_vector: vec![BlsScalar::from(3), BlsScalar::from(3), BlsScalar::from(5)],
             witness: BlsScalar::from(4),
-            desc: String::from("Duplicate elements in the vector"),
+            desc: String::from("Duplicate elements in the vector, shouldn't matter for neither of the parties"),
             expected_witness: true,
             expected_prover: true,
         },

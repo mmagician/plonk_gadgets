@@ -14,7 +14,7 @@ use crate::Error as GadgetsError;
 use alloc::vec::Vec;
 use dusk_plonk::prelude::*;
 
-/// Provided a `Vec<BlsScalar>`, constraint `value: BlsScalar` to be in that vector
+/// Provided a `Vec<BlsScalar>`, constraint `value` to not be in that vector
 /// Here, the prover and the verifier should have the same view of the vector, i.e.
 /// the vector must form part of the circuit
 /// This gadget might seem silly in isolation (if I'm a prover and the vector
