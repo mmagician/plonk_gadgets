@@ -12,47 +12,96 @@ use plonk_gadgets::AllocatedScalar;
 use plonk_gadgets::{Error as GadgetError, SetGadgets::*};
 
 #[test]
-fn test_set_non_membership_gadget() -> Result<(), Error> {
-    // The circuit closure runs the set_non_membership gadget, which constraints the value to
-    // not be part of the set.
-    let circuit =
-        |composer: &mut StandardComposer,
-         set: Vec<BlsScalar>,
-         value: BlsScalar|
-         -> Result<(), GadgetError> { set_non_membership_gadget(composer, set, value) };
+fn test_vector_non_membership_gadget() -> Result<(), Error> {
+    // The circuit closure runs the set_non_membership gadget, which constraints the witness to
+    // not be part of the vector.
+    let circuit = |composer: &mut StandardComposer,
+                   vector: &Vec<BlsScalar>,
+                   witness: BlsScalar|
+     -> Result<(), GadgetError> {
+        vector_non_membership_gadget(composer, &vector, witness)
+    };
 
     // Generate Composer & Public Parameters
     let pub_params = PublicParameters::setup(1 << 8, &mut rand::thread_rng())?;
     let (ck, vk) = pub_params.trim(1 << 7)?;
-    let set = vec![BlsScalar::from(1), BlsScalar::from(2)];
-    let different_set = vec![BlsScalar::from(3), BlsScalar::from(4)];
+    struct TestCase {
+        prover_vector: Vec<BlsScalar>,
+        verifier_vector: Vec<BlsScalar>,
+        witness: BlsScalar,
+        expected_witness: bool,
+        expected_prover: bool,
+        desc: String,
+    }
 
-    // Value is part of the set, prover shouldn't be able to construct an incorrect circuit
-    let mut prover = Prover::new(b"testing");
-    assert!(circuit(prover.mut_cs(), set.clone(), set[0].clone()).is_err());
+    let test_cases: Vec<TestCase> = vec![
+        TestCase {
+            prover_vector: vec![BlsScalar::from(3), BlsScalar::from(4)],
+            verifier_vector: vec![BlsScalar::from(3), BlsScalar::from(4)],
+            witness: BlsScalar::from(5),
+            desc: String::from("Element not part of the vector, should pass"),
+            expected_witness: true,
+            expected_prover: true,
+        },
+        TestCase {
+            prover_vector: vec![BlsScalar::from(3), BlsScalar::from(4)],
+            verifier_vector: vec![BlsScalar::from(3), BlsScalar::from(4)],
+            witness: BlsScalar::from(3),
+            desc: String::from("Element part of vector, prover shouldnt construct a valid proof"),
+            expected_witness: false,
+            expected_prover: false,
+        },
+        TestCase {
+            prover_vector: vec![BlsScalar::from(3), BlsScalar::from(3)],
+            verifier_vector: vec![BlsScalar::from(3), BlsScalar::from(3)],
+            witness: BlsScalar::from(4),
+            desc: String::from("Duplicate elements in the vector"),
+            expected_witness: true,
+            expected_prover: true,
+        },
+        TestCase {
+            prover_vector: vec![BlsScalar::from(3)],
+            verifier_vector: vec![BlsScalar::from(3), BlsScalar::from(4), BlsScalar::from(5)],
+            witness: BlsScalar::from(6),
+            desc: String::from(
+                "Verifier vector has different lenght, shouldn't accept trivial proof",
+            ),
+            expected_witness: false,
+            expected_prover: true,
+        },
+        TestCase {
+            prover_vector: vec![BlsScalar::from(3), BlsScalar::from(4)],
+            verifier_vector: vec![BlsScalar::from(5), BlsScalar::from(6)],
+            witness: BlsScalar::from(7),
+            desc: String::from("Prover and verifier vectors same length, different elements"),
+            expected_witness: false,
+            expected_prover: true,
+        },
+    ];
 
-    // Prover and verifier using different sets should fail
-    // Prover constructs a correct circuit
-    let mut prover = Prover::new(b"testing");
-    assert!(circuit(prover.mut_cs(), set.clone(), BlsScalar::from(5)).is_ok());
+    for case in test_cases.iter() {
+        println!("{}", case.desc);
 
-    let pi = prover.mut_cs().construct_dense_pi_vec().clone();
-    prover.preprocess(&ck)?;
-    let proof = prover.prove(&ck)?;
+        let mut prover = Prover::new(b"testing");
+        if case.expected_prover {
+            assert!(circuit(prover.mut_cs(), &case.prover_vector, case.witness).is_ok());
+        } else {
+            assert!(circuit(prover.mut_cs(), &case.prover_vector, case.witness).is_err());
+            continue;
+        }
+        let pi = prover.mut_cs().construct_dense_pi_vec().clone();
+        prover.preprocess(&ck)?;
+        let proof = prover.prove(&ck)?;
 
-    // Verification
-    let mut verifier = Verifier::new(b"testing");
-    // verifier can construct a correct circuit
-    assert!(circuit(verifier.mut_cs(), different_set.clone(), BlsScalar::zero()).is_ok());
-    verifier.preprocess(&ck)?;
-    // But his set corresponds to a different set than prover's, so the proof won't be correct
-    assert!(verifier.verify(&proof, &vk, &pi).is_err());
-
-    // Both prover and verifier using the same circuit. This should pass.
-    let mut verifier = Verifier::new(b"testing");
-    assert!(circuit(verifier.mut_cs(), set.clone(), BlsScalar::zero()).is_ok());
-    verifier.preprocess(&ck)?;
-    assert!(verifier.verify(&proof, &vk, &pi).is_ok());
+        let mut verifier = Verifier::new(b"testing");
+        assert!(circuit(verifier.mut_cs(), &case.verifier_vector, BlsScalar::zero()).is_ok());
+        verifier.preprocess(&ck)?;
+        if case.expected_witness {
+            assert!(verifier.verify(&proof, &vk, &pi).is_ok());
+        } else {
+            assert!(verifier.verify(&proof, &vk, &pi).is_err());
+        }
+    }
 
     Ok(())
 }
