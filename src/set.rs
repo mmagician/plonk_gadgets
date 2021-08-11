@@ -31,7 +31,6 @@ pub fn vector_non_membership_gadget(
     vector: &Vec<BlsScalar>,
     value: AllocatedScalar,
 ) -> Result<(), GadgetsError> {
-
     // Add each element from the vector to the composer
     for elem in vector.iter() {
         // Since the vector forms part of the circuit,
@@ -183,13 +182,7 @@ pub fn set_membership_gadget(
     }
     let bit_map: Vec<u64> = vector
         .iter()
-        .map(|elem| {
-            if *elem == assigned_value.scalar {
-                1
-            } else {
-                0
-            }
-        })
+        .map(|elem| if *elem == assigned_value.scalar { 1 } else { 0 })
         .collect();
 
     let mut assigned_bits: Vec<AllocatedScalar> = Vec::new();

@@ -56,7 +56,9 @@ fn test_vector_non_membership_gadget() -> Result<(), Error> {
             prover_vector: vec![BlsScalar::from(3), BlsScalar::from(3), BlsScalar::from(5)],
             verifier_vector: vec![BlsScalar::from(3), BlsScalar::from(3), BlsScalar::from(5)],
             witness: BlsScalar::from(4),
-            desc: String::from("Duplicate elements in the vector, shouldn't matter for neither of the parties"),
+            desc: String::from(
+                "Duplicate elements in the vector, shouldn't matter for neither of the parties",
+            ),
             expected_witness: true,
             expected_prover: true,
         },
@@ -188,9 +190,9 @@ fn test_set_membership_gadget() -> Result<(), Error> {
     // The circuit closure runs the set_membership gadget, which constraints the value to
     // be part of the set.
     let circuit = |composer: &mut StandardComposer,
-    set: &Vec<BlsScalar>,
-    value: BlsScalar|
-              -> Result<(), GadgetError> {
+                   set: &Vec<BlsScalar>,
+                   value: BlsScalar|
+     -> Result<(), GadgetError> {
         let assigned_value = AllocatedScalar::allocate(composer, value);
         set_membership_gadget(composer, set, assigned_value)
     };
