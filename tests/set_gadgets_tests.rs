@@ -275,3 +275,91 @@ fn test_set_membership_gadget() -> Result<(), Error> {
 
     Ok(())
 }
+
+#[test]
+fn test_set_uniqueness_gadget() -> Result<(), Error> {
+    // The circuit closure runs the set_membership gadget, which constraints the value to
+    // be part of the set.
+    // **Note**
+    // The verifier will not know the prover's vector
+    // However, he needs to construct a <placeholder> vector with all distinct elements,
+    // of the same size as provers' vector,
+    // in order to be able to create a correct circuit
+    let circuit =
+        |composer: &mut StandardComposer, set: &Vec<BlsScalar>| -> Result<(), GadgetError> {
+            let assigned_set: Vec<AllocatedScalar> = set
+                .iter()
+                .map(|x| AllocatedScalar::allocate(composer, *x))
+                .collect();
+            set_uniqueness_gadget(composer, &assigned_set)
+        };
+
+    // Generate Composer & Public Parameters
+    let pub_params = PublicParameters::setup(1 << 8, &mut rand::thread_rng())?;
+    let (ck, vk) = pub_params.trim(1 << 7)?;
+
+    struct TestCase {
+        prover_set: Vec<BlsScalar>,
+        verifier_set: Vec<BlsScalar>,
+        expected_witness: bool,
+        expected_prover: bool,
+        desc: String,
+    }
+
+    let test_cases: Vec<TestCase> = vec![
+        TestCase {
+            prover_set: vec![BlsScalar::from(3), BlsScalar::from(4)],
+            verifier_set: vec![BlsScalar::from(0), BlsScalar::from(1)],
+            desc: String::from("Elements unique"),
+            expected_witness: true,
+            expected_prover: true,
+        },
+        TestCase {
+            prover_set: vec![BlsScalar::from(3), BlsScalar::from(3)],
+            verifier_set: vec![BlsScalar::from(0), BlsScalar::from(1)],
+            desc: String::from("Elements repeated"),
+            expected_witness: false,
+            expected_prover: false,
+        },
+        // TestCase {
+        //     prover_set: vec![BlsScalar::from(3)],
+        //     verifier_set: vec![BlsScalar::from(3), BlsScalar::from(4), BlsScalar::from(5)],
+        //     desc: String::from("Prover shouldn't be able to create trivial proofs for len=1, should panic!"),
+        //     expected_witness: false,
+        //     expected_prover: false,
+        // },
+        TestCase {
+            prover_set: vec![BlsScalar::from(3), BlsScalar::from(4)],
+            verifier_set: vec![BlsScalar::from(0), BlsScalar::from(1), BlsScalar::from(2)],
+            desc: String::from("Verifier set has different lenght, shouldn't accept"),
+            expected_witness: false,
+            expected_prover: true,
+        },
+    ];
+
+    for case in test_cases.iter() {
+        println!("{}", case.desc);
+
+        let mut prover = Prover::new(b"testing");
+        if case.expected_prover {
+            assert!(circuit(prover.mut_cs(), &case.prover_set).is_ok());
+        } else {
+            assert!(circuit(prover.mut_cs(), &case.prover_set).is_err());
+            continue;
+        }
+        let pi = prover.mut_cs().construct_dense_pi_vec().clone();
+        prover.preprocess(&ck)?;
+        let proof = prover.prove(&ck)?;
+
+        let mut verifier = Verifier::new(b"testing");
+        assert!(circuit(verifier.mut_cs(), &case.verifier_set).is_ok());
+        verifier.preprocess(&ck)?;
+        if case.expected_witness {
+            assert!(verifier.verify(&proof, &vk, &pi).is_ok());
+        } else {
+            assert!(verifier.verify(&proof, &vk, &pi).is_err());
+        }
+    }
+
+    Ok(())
+}

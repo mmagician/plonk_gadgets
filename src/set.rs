@@ -196,3 +196,63 @@ pub fn set_membership_gadget(
     assert!(vector_product_gadget(composer, &assigned_set, &assigned_bits, assigned_value).is_ok());
     Ok(())
 }
+
+/// Given a `set_length`, construct a circuit
+/// for proving that all elements in that set are unique
+/// This gadget assumes nothing about the individual elements in the set
+/// i.e. the set we are proving is not Public Input and is unknown to the verifier
+/// In order to construct a correct circuit though, the verifier needs to provide
+/// a <placeholder> vector with all elements distinct, and of the same size as verifier's
+/// (i.e. the knowledge of the vector length is public!)
+pub fn set_uniqueness_gadget(
+    composer: &mut StandardComposer,
+    vector: &Vec<AllocatedScalar>,
+) -> Result<(), GadgetsError> {
+    // Recall formula for partial sum: n*(n+1)/2
+    let length = vector.len() as usize;
+    assert!(length >= 2, "Can't take differences for sets of length < 2");
+    // First, make a vector of differences between each element with one another
+    // How many differences do we have?
+    // For 1st element: n-1 differences
+    // All the way down to (n-1)th element with 1 difference
+    // That's a partial sum from 1 to n-1, in reverse order
+    for i in 0..length {
+        for j in (i + 1)..length {
+            let diff = vector[i].scalar - vector[j].scalar;
+            let diff_assigned = AllocatedScalar::allocate(composer, diff);
+            let diff_inv = diff.invert();
+            let diff_inv_assigned: AllocatedScalar;
+            if diff_inv.is_some().unwrap_u8() == 1u8 {
+                // Safe to unwrap here.
+                diff_inv_assigned = AllocatedScalar::allocate(composer, diff_inv.unwrap());
+            } else {
+                return Err(GadgetsError::NonExistingInverse);
+            }
+            // First check: var allocated to diff is really
+            // the difference of two consecutive elements:
+            // diff + vector[j] == vector[i]
+            let diff_plus_ith_elem = composer.add(
+                (BlsScalar::one(), diff_assigned.var),
+                (BlsScalar::one(), vector[j].var),
+                BlsScalar::zero(),
+                None,
+            );
+            composer.assert_equal(diff_plus_ith_elem, vector[i].var);
+
+            // Second check: diff is non-zero
+            let one = composer.add_witness_to_circuit_description(BlsScalar::one());
+            composer.poly_gate(
+                diff_assigned.var,
+                diff_inv_assigned.var,
+                one,
+                BlsScalar::one(),
+                BlsScalar::zero(),
+                BlsScalar::zero(),
+                -BlsScalar::one(),
+                BlsScalar::zero(),
+                None,
+            );
+        }
+    }
+    Ok(())
+}
