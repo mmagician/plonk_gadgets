@@ -17,7 +17,8 @@ This library provides:
 
 - Scalar gadgets: `is_non-zero`, `maybe_equals`, `conditionally_select_one`, `conditionally_select_zero`.
 - Range gadgets: `range_check`, `max_bound`.
-- Vector gadgets: `set_non_membership`.
+- Vector gadgets: `vector_non_membership`, `vector_membership`, `vector_uniqueness`, `vector_sum`.
+- Big gadgets: `bit_gadget`.
 
 ## Acknowledgements
 
